@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""The main process class responsible for instantiating and running the plugins.
-"""
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 from multiprocessing import Process
 from multiprocessing import JoinableQueue
 
@@ -11,9 +5,17 @@ from sslyze.synchronous_scanner import SynchronousScanner
 
 
 class WorkerProcess(Process):
+    """The main process class responsible for instantiating and running the plugins.
+    """
 
-    def __init__(self, priority_queue_in, queue_in, queue_out, network_retries, network_timeout):
-        # type: (JoinableQueue, JoinableQueue, JoinableQueue, int, int) -> None
+    def __init__(
+        self,
+        priority_queue_in: JoinableQueue,
+        queue_in: JoinableQueue,
+        queue_out: JoinableQueue,
+        network_retries: int,
+        network_timeout: int,
+    ) -> None:
         Process.__init__(self)
         self.priority_queue_in = priority_queue_in
         self.queue_in = queue_in
@@ -22,9 +24,7 @@ class WorkerProcess(Process):
         # The object that will actually run the scan commands
         self._synchronous_scanner = SynchronousScanner(network_retries, network_timeout)
 
-
-    def run(self):
-        # type: () -> None
+    def run(self) -> None:
         """The process will first complete tasks it gets from self.queue_in.
         Once it gets notified that all the tasks have been completed, it terminates.
         """

@@ -1,42 +1,34 @@
-# -*- coding: utf-8 -*-
-"""Generic, simple thread pool used in some of the plugins.
-"""
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
 import threading
+from typing import Tuple, Any, List, Iterable, Callable
 
-try:
-    # Python 3
-    # noinspection PyCompatibility
-    from queue import Queue
-except ImportError:
-    # Python 2
-    # noinspection PyCompatibility
-    from Queue import Queue
+from queue import Queue
 
 
-class _ThreadPoolSentinel(object):
+class _ThreadPoolSentinel:
     pass
 
 
-class ThreadPool(object):
+JobType = Tuple[Callable, List]  # A function and its arguments
+
+
+class ThreadPool:
     """Generic Thread Pool used in some of the plugins.
-    Any unhandled exception happening in the work function goes to the error
-    queue that can be read using get_error().
+
+    Any unhandled exception happening in the work function goes to the error queue that can be read using get_error().
     Anything else goes to the result queue that can be read using get_result().
     """
-    def __init__(self):
-        self._active_threads = 0
-        self._job_q = Queue()
-        self._result_q = Queue()
-        self._error_q = Queue()
-        self._thread_list = []
 
-    def add_job(self, job):
+    def __init__(self) -> None:
+        self._active_threads = 0
+        self._job_q: Queue = Queue()
+        self._result_q: Queue = Queue()
+        self._error_q: Queue = Queue()
+        self._thread_list: List[threading.Thread] = []
+
+    def add_job(self, job: JobType) -> None:
         self._job_q.put(job)
 
-    def get_error(self):
+    def get_error(self) -> Iterable[Tuple[JobType, Exception]]:
         active_threads = self._active_threads
         while active_threads or (not self._error_q.empty()):
             error = self._error_q.get()
@@ -51,8 +43,7 @@ class ThreadPool(object):
                 self._error_q.task_done()
                 yield error
 
-
-    def get_result(self):
+    def get_result(self) -> Iterable[Tuple[JobType, Any]]:
         active_threads = self._active_threads
         while active_threads or (not self._result_q.empty()):
             result = self._result_q.get()
@@ -67,38 +58,39 @@ class ThreadPool(object):
                 self._result_q.task_done()
                 yield result
 
-
-    def start(self, nb_threads):
-        """
-        Should only be called once all the jobs have been added using add_job().
+    def start(self, nb_threads: int) -> None:
+        """Should only be called once all the jobs have been added using add_job().
         """
         if self._active_threads:
-            raise Exception('Threads already started.')
+            raise Exception("Threads already started.")
 
         # Create thread pool
         for _ in range(nb_threads):
-            worker = threading.Thread(
-                target=_work_function,
-                args=(self._job_q, self._result_q, self._error_q))
+            worker = threading.Thread(target=_work_function, args=(self._job_q, self._result_q, self._error_q))
             worker.start()
             self._thread_list.append(worker)
             self._active_threads += 1
 
         # Put sentinels to let the threads know when there's no more jobs
-        [self._job_q.put(_ThreadPoolSentinel()) for _ in self._thread_list]
+        for _ in self._thread_list:
+            self._job_q.put(_ThreadPoolSentinel())
 
-
-    def join(self):
+    def join(self) -> None:
         # Clean exit
         self._job_q.join()
-        [worker.join() for worker in self._thread_list]
+
+        for worker in self._thread_list:
+            worker.join()
+        self._thread_list = []
+
         self._active_threads = 0
         self._result_q.join()
         self._error_q.join()
 
 
-def _work_function(job_q, result_q, error_q):
-    """Work function expected to run within threads."""
+def _work_function(job_q: Queue, result_q: Queue, error_q: Queue) -> None:
+    """Work function expected to run within threads.
+    """
     while True:
         job = job_q.get()
 
@@ -109,10 +101,10 @@ def _work_function(job_q, result_q, error_q):
             job_q.task_done()
             break
 
-        function = job[0]
+        work_function = job[0]
         args = job[1]
         try:
-            result = function(*args)
+            result = work_function(*args)
         except Exception as e:
             error_q.put((job, e))
         else:

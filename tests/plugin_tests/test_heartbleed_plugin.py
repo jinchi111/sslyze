@@ -1,55 +1,65 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-import unittest
-
-import logging
-
 import pickle
 
 from sslyze.plugins.heartbleed_plugin import HeartbleedPlugin, HeartbleedScanCommand
-from sslyze.server_connectivity import ServerConnectivityInfo
+from sslyze.server_connectivity_tester import ServerConnectivityTester
+from tests.markers import can_only_run_on_linux_64
 
-from tests.plugin_tests.openssl_server import NotOnLinux64Error
-from tests.plugin_tests.openssl_server import VulnerableOpenSslServer
+from tests.openssl_server import LegacyOpenSslServer, ClientAuthConfigEnum
 
 
-class HeartbleedPluginTestCase(unittest.TestCase):
+class TestHeartbleedPlugin:
 
     def test_heartbleed_good(self):
-        server_info = ServerConnectivityInfo(hostname='www.google.com')
-        server_info.test_connectivity_to_server()
+        server_test = ServerConnectivityTester(hostname='www.google.com')
+        server_info = server_test.perform()
 
         plugin = HeartbleedPlugin()
         plugin_result = plugin.process_task(server_info, HeartbleedScanCommand())
 
-        self.assertFalse(plugin_result.is_vulnerable_to_heartbleed)
+        assert not plugin_result.is_vulnerable_to_heartbleed
 
-        self.assertTrue(plugin_result.as_text())
-        self.assertTrue(plugin_result.as_xml())
+        assert plugin_result.as_text()
+        assert plugin_result.as_xml()
 
         # Ensure the results are pickable so the ConcurrentScanner can receive them via a Queue
-        self.assertTrue(pickle.dumps(plugin_result))
+        assert pickle.dumps(plugin_result)
 
+    @can_only_run_on_linux_64
     def test_heartbleed_bad(self):
-        try:
-            with VulnerableOpenSslServer() as server:
-                server_info = ServerConnectivityInfo(hostname=server.hostname, ip_address=server.ip_address,
-                                                     port=server.port)
-                server_info.test_connectivity_to_server()
+        with LegacyOpenSslServer() as server:
+            server_test = ServerConnectivityTester(
+                hostname=server.hostname, ip_address=server.ip_address, port=server.port
+            )
+            server_info = server_test.perform()
 
-                plugin = HeartbleedPlugin()
-                plugin_result = plugin.process_task(server_info, HeartbleedScanCommand())
-        except NotOnLinux64Error:
-            # The test suite only has the vulnerable OpenSSL version compiled for Linux 64 bits
-            logging.warning('WARNING: Not on Linux - skipping test_heartbleed_bad() test')
-            return
+            plugin = HeartbleedPlugin()
+            plugin_result = plugin.process_task(server_info, HeartbleedScanCommand())
 
-        self.assertTrue(plugin_result.is_vulnerable_to_heartbleed)
-        self.assertTrue(plugin_result.as_text())
-        self.assertTrue(plugin_result.as_xml())
+        assert plugin_result.is_vulnerable_to_heartbleed
+        assert plugin_result.as_text()
+        assert plugin_result.as_xml()
 
         # Ensure the results are pickable so the ConcurrentScanner can receive them via a Queue
-        self.assertTrue(pickle.dumps(plugin_result))
+        assert pickle.dumps(plugin_result)
 
+    @can_only_run_on_linux_64
+    def test_succeeds_when_client_auth_failed(self):
+        # Given a server that requires client authentication
+        with LegacyOpenSslServer(
+                client_auth_config=ClientAuthConfigEnum.REQUIRED
+        ) as server:
+            # And the client does NOT provide a client certificate
+            server_test = ServerConnectivityTester(
+                hostname=server.hostname,
+                ip_address=server.ip_address,
+                port=server.port
+            )
+            server_info = server_test.perform()
+
+            # The plugin works even when a client cert was not supplied
+            plugin = HeartbleedPlugin()
+            plugin_result = plugin.process_task(server_info, HeartbleedScanCommand())
+
+        assert plugin_result.is_vulnerable_to_heartbleed
+        assert plugin_result.as_text()
+        assert plugin_result.as_xml()

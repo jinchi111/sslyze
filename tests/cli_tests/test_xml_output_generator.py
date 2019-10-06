@@ -1,20 +1,16 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-import unittest
 from io import StringIO
 from xml.etree.ElementTree import Element
 
-from sslyze.cli import FailedServerScan, CompletedServerScan
+from sslyze.cli import CompletedServerScan
+from sslyze.cli.command_line_parser import ServerStringParsingError
 from sslyze.cli.xml_output import XmlOutputGenerator
-from sslyze.server_connectivity import ServerConnectivityError
+from sslyze.server_connectivity_tester import ServerConnectivityError
 from sslyze.ssl_settings import HttpConnectTunnelingSettings
 from tests.cli_tests import MockServerConnectivityInfo, MockPluginScanResult, MockCommandLineValues, \
-    MockPluginScanCommandOne, MockPluginScanCommandTwo
+    MockPluginScanCommandOne, MockPluginScanCommandTwo, MockServerConnectivityTester
 
 
-class XmlOutputGeneratorTestCase(unittest.TestCase):
+class TestXmlOutputGenerator:
 
     def test(self):
         """The final output only gets written at the end, when calling scans_completed(). Hence we need to call all the
@@ -23,10 +19,16 @@ class XmlOutputGeneratorTestCase(unittest.TestCase):
         output_file = StringIO()
         generator = XmlOutputGenerator(output_file)
 
-        generator.command_line_parsed(None, MockCommandLineValues())
+        failed_parsing = ServerStringParsingError(
+            supplied_server_string='www.badpãrsing.com',
+            error_message='Pãrsing error'
+        )
+        generator.command_line_parsed(set(), MockCommandLineValues(), [failed_parsing])
 
-        failed_scan = FailedServerScan(server_string='unibadeéè.com',
-                                       connection_exception=ServerConnectivityError(error_msg='Some érrôr'))
+        failed_scan = ServerConnectivityError(
+            server_info=MockServerConnectivityTester(hostname='unibadeéè.com'),
+            error_message='Some érrôr'
+        )
         generator.server_connectivity_test_failed(failed_scan)
 
         server_info = MockServerConnectivityInfo()
@@ -41,7 +43,6 @@ class XmlOutputGeneratorTestCase(unittest.TestCase):
         plugin_xml_out_2.text = 'other plugin Output'
         plugin_result_2 = MockPluginScanResult(server_info, MockPluginScanCommandTwo(), '', plugin_xml_out_2)
 
-        # noinspection PyTypeChecker
         server_scan = CompletedServerScan(server_info, [plugin_result_1, plugin_result_2])
         generator.server_scan_completed(server_scan)
 
@@ -51,26 +52,27 @@ class XmlOutputGeneratorTestCase(unittest.TestCase):
         received_output = output_file.getvalue()
         output_file.close()
 
-        # Ensure the output properly listed the connectivity error with unicode escaped as \u sequences
-        self.assertIn('unibadeéè.com', received_output)
-        self.assertIn('Some érrôr', received_output)
+        # Ensure the output properly listed the parsing error
+        assert 'www.badpãrsing.com' in received_output
+        assert 'Pãrsing error' in received_output
+
+        # Ensure the output properly listed the connectivity error
+        assert 'unibadeéè.com' in received_output
+        assert 'Some érrôr' in received_output
 
         # Ensure the output properly listed the online domain
-        self.assertIn(server_info.hostname, received_output)
-        self.assertIn(str(server_info.port), received_output)
-        self.assertIn(server_info.ip_address, received_output)
+        assert server_info.hostname in received_output
+        assert str(server_info.port) in received_output
+        assert server_info.ip_address in received_output
 
         # Ensure the output displayed the plugin's XML output
-        self.assertIn(plugin_result_1.scan_command.get_cli_argument(), received_output)
-        self.assertIn(plugin_result_2.scan_command.get_cli_argument(), received_output)
-        self.assertIn(plugin_result_1.as_xml().text, received_output)
-        self.assertIn(plugin_result_2.as_xml().text, received_output)
+        assert plugin_result_1.scan_command.get_cli_argument() in received_output
+        assert plugin_result_2.scan_command.get_cli_argument() in received_output
+        assert plugin_result_1.as_xml().text in received_output
+        assert plugin_result_2.as_xml().text in received_output
 
         # Ensure the console output displayed the total scan time
-        self.assertIn('totalScanTime="{}"'.format(scan_time), received_output)
-        self.assertIn('networkTimeout="{}"'.format(MockCommandLineValues().timeout), received_output)
-        self.assertIn('networkMaxRetries="{}"'.format(MockCommandLineValues().nb_retries), received_output)
-
+        assert 'totalScanTime="{}"'.format(scan_time) in received_output
 
     def test_with_http_tunneling(self):
         output_file = StringIO()
@@ -90,5 +92,5 @@ class XmlOutputGeneratorTestCase(unittest.TestCase):
         output_file.close()
 
         # Ensure the output displayed the tunneling settings
-        self.assertIn('httpsTunnelHostname="{}"'.format(tunneling_settings.hostname), received_output)
-        self.assertIn('httpsTunnelPort="{}"'.format(tunneling_settings.port), received_output)
+        assert 'httpsTunnelHostname="{}"'.format(tunneling_settings.hostname) in received_output
+        assert 'httpsTunnelPort="{}"'.format(tunneling_settings.port) in received_output

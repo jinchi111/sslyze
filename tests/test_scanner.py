@@ -1,32 +1,25 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-import unittest
-
 from sslyze.concurrent_scanner import ConcurrentScanner
 from sslyze.plugins.certificate_info_plugin import CertificateInfoScanCommand
 from sslyze.plugins.compression_plugin import CompressionScanCommand
 from sslyze.plugins.session_renegotiation_plugin import SessionRenegotiationScanCommand
-from sslyze.server_connectivity import ServerConnectivityInfo
+from sslyze.server_connectivity_tester import ServerConnectivityTester
 from sslyze.synchronous_scanner import SynchronousScanner
 
 
-class ScannerTestCase(unittest.TestCase):
+class TestScanner:
 
     def test_synchronous_scanner(self):
-        server_info = ServerConnectivityInfo(hostname='www.google.com')
-        server_info.test_connectivity_to_server()
+        server_test = ServerConnectivityTester(hostname='www.google.com')
+        server_info = server_test.perform()
 
         sync_scanner = SynchronousScanner()
         plugin_result = sync_scanner.run_scan_command(server_info, CompressionScanCommand())
-        self.assertTrue(plugin_result.as_text())
-        self.assertTrue(plugin_result.as_xml())
-
+        assert plugin_result.as_text()
+        assert plugin_result.as_xml()
 
     def test_concurrent_scanner(self):
-        server_info = ServerConnectivityInfo(hostname='www.google.com')
-        server_info.test_connectivity_to_server()
+        server_test = ServerConnectivityTester(hostname='www.google.com')
+        server_info = server_test.perform()
 
         # Queue some scan commands that are quick
         concurrent_scanner = ConcurrentScanner()
@@ -37,8 +30,8 @@ class ScannerTestCase(unittest.TestCase):
         # Process the results
         nb_results = 0
         for plugin_result in concurrent_scanner.get_results():
-            self.assertTrue(plugin_result.as_text())
-            self.assertTrue(plugin_result.as_xml())
-            nb_results +=1
+            assert plugin_result.as_text()
+            assert plugin_result.as_xml()
+            nb_results += 1
 
-        self.assertEquals(nb_results, 3)
+        assert nb_results == 3

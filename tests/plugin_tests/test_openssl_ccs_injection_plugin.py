@@ -1,44 +1,58 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import unicode_literals
-
-import unittest
-import logging
-
 from sslyze.plugins.openssl_ccs_injection_plugin import OpenSslCcsInjectionPlugin, OpenSslCcsInjectionScanCommand
-from sslyze.server_connectivity import ServerConnectivityInfo
-from tests.plugin_tests.openssl_server import VulnerableOpenSslServer, NotOnLinux64Error
+from sslyze.server_connectivity_tester import ServerConnectivityTester
+from tests.markers import can_only_run_on_linux_64
+from tests.openssl_server import LegacyOpenSslServer, ClientAuthConfigEnum
 
 
-class OpenSslCcsInjectionPluginTestCase(unittest.TestCase):
+class TestOpenSslCcsInjectionPlugin:
 
     def test_ccs_injection_good(self):
-        server_info = ServerConnectivityInfo(hostname='www.google.com')
-        server_info.test_connectivity_to_server()
+        server_test = ServerConnectivityTester(hostname='www.google.com')
+        server_info = server_test.perform()
 
         plugin = OpenSslCcsInjectionPlugin()
         plugin_result = plugin.process_task(server_info, OpenSslCcsInjectionScanCommand())
 
-        self.assertFalse(plugin_result.is_vulnerable_to_ccs_injection)
+        assert not plugin_result.is_vulnerable_to_ccs_injection
 
-        self.assertTrue(plugin_result.as_text())
-        self.assertTrue(plugin_result.as_xml())
+        assert plugin_result.as_text()
+        assert plugin_result.as_xml()
 
+    @can_only_run_on_linux_64
     def test_ccs_injection_bad(self):
-        try:
-            with VulnerableOpenSslServer() as server:
-                server_info = ServerConnectivityInfo(hostname=server.hostname, ip_address=server.ip_address,
-                                                     port=server.port)
-                server_info.test_connectivity_to_server()
+        with LegacyOpenSslServer() as server:
+            server_test = ServerConnectivityTester(
+                hostname=server.hostname,
+                ip_address=server.ip_address,
+                port=server.port
+            )
+            server_info = server_test.perform()
 
-                plugin = OpenSslCcsInjectionPlugin()
-                plugin_result = plugin.process_task(server_info, OpenSslCcsInjectionScanCommand())
-        except NotOnLinux64Error:
-            # The test suite only has the vulnerable OpenSSL version compiled for Linux 64 bits
-            logging.warning('WARNING: Not on Linux - skipping test_ccs_injection_bad() test')
-            return
+            plugin = OpenSslCcsInjectionPlugin()
+            plugin_result = plugin.process_task(server_info, OpenSslCcsInjectionScanCommand())
 
-        self.assertTrue(plugin_result.is_vulnerable_to_ccs_injection)
-        self.assertTrue(plugin_result.as_text())
-        self.assertTrue(plugin_result.as_xml())
+        assert plugin_result.is_vulnerable_to_ccs_injection
+        assert plugin_result.as_text()
+        assert plugin_result.as_xml()
 
+    @can_only_run_on_linux_64
+    def test_succeeds_when_client_auth_failed(self):
+        # Given a server that requires client authentication
+        with LegacyOpenSslServer(
+                client_auth_config=ClientAuthConfigEnum.REQUIRED
+        ) as server:
+            # And the client does NOT provide a client certificate
+            server_test = ServerConnectivityTester(
+                hostname=server.hostname,
+                ip_address=server.ip_address,
+                port=server.port
+            )
+            server_info = server_test.perform()
+
+            # OpenSslCcsInjectionPlugin works even when a client cert was not supplied
+            plugin = OpenSslCcsInjectionPlugin()
+            plugin_result = plugin.process_task(server_info, OpenSslCcsInjectionScanCommand())
+
+        assert plugin_result.is_vulnerable_to_ccs_injection
+        assert plugin_result.as_text()
+        assert plugin_result.as_xml()

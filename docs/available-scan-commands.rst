@@ -1,7 +1,3 @@
-.. sslyze documentation master file, created by
-   sphinx=quickstart on Sun Jan 15 12:41:02 2017.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 Appendix: Available Scan Commands
 *********************************
@@ -28,9 +24,6 @@ CertificateInfoPlugin
 
 .. automodule:: sslyze.plugins.certificate_info_plugin
 
-CertificateInfoScanCommand
---------------------------
-
 .. autoclass:: CertificateInfoScanCommand()
    :members: __init__
 .. autoclass:: CertificateInfoScanResult()
@@ -41,25 +34,38 @@ Additional helper classes
 
 .. autoclass:: PathValidationResult()
 .. autoclass:: PathValidationError()
+.. autoclass:: OcspResponseStatusEnum()
+   :members:
+   :undoc-members:
+.. autoclass:: SymantecDistrustTimelineEnum()
+   :members:
+   :undoc-members:
+
+.. autoclass:: CertificateChainDeploymentAnalyzer()
+   :members: perform
+.. autoclass:: CertificateChainDeploymentAnalysisResult()
+
 .. automodule:: sslyze.plugins.utils.trust_store.trust_store
 .. autoclass:: TrustStore()
 
+Updating the trust stores
+-------------------------
+
+.. automodule:: sslyze.plugins.utils.trust_store.trust_store_repository
+.. autoclass:: TrustStoresRepository()
+   :members: update_default
 
 OpenSslCipherSuitesPlugin
 =========================
 
 .. automodule:: sslyze.plugins.openssl_cipher_suites_plugin
 
-
-CipherSuiteScanCommands
------------------------
-
 .. autoclass:: Sslv20ScanCommand()
 .. autoclass:: Sslv30ScanCommand()
 .. autoclass:: Tlsv10ScanCommand()
 .. autoclass:: Tlsv11ScanCommand()
 .. autoclass:: Tlsv12ScanCommand()
-.. autoclass:: Tlsv12ScanCommand()
+.. autoclass:: Tlsv13ScanCommand()
 .. autoclass:: CipherSuiteScanResult()
 
 Additional helper classes
@@ -75,10 +81,6 @@ CompressionPlugin
 
 .. automodule:: sslyze.plugins.compression_plugin
 
-
-CompressionScanCommand
-----------------------
-
 .. autoclass:: CompressionScanCommand()
 .. autoclass:: CompressionScanResult()
 
@@ -87,10 +89,6 @@ FallbackScsvPlugin
 ==================
 
 .. automodule:: sslyze.plugins.fallback_scsv_plugin
-
-
-FallbackScsvScanCommand
------------------------
 
 .. autoclass:: FallbackScsvScanCommand()
 .. autoclass:: FallbackScsvScanResult()
@@ -101,10 +99,6 @@ HeartbleedPlugin
 
 .. automodule:: sslyze.plugins.heartbleed_plugin
 
-
-HeartbleedScanCommand
----------------------
-
 .. autoclass:: HeartbleedScanCommand()
 .. autoclass:: HeartbleedScanResult()
 
@@ -114,9 +108,6 @@ HttpHeadersScanPlugin
 
 .. automodule:: sslyze.plugins.http_headers_plugin
 
-HttpHeadersScanCommand
-----------------------
-
 .. autoclass:: HttpHeadersScanCommand()
 .. autoclass:: HttpHeadersScanResult()
 
@@ -125,16 +116,13 @@ Additional helper classes
 
 .. autoclass:: ParsedHstsHeader()
 .. autoclass:: ParsedHpkpHeader()
+.. autoclass:: ParsedExpectCtHeader()
 
 
 OpenSslCcsInjectionPlugin
 =========================
 
 .. automodule:: sslyze.plugins.openssl_ccs_injection_plugin
-
-OpenSslCcsInjectionScanCommand
-------------------------------
-
 
 .. autoclass:: OpenSslCcsInjectionScanCommand()
 .. autoclass:: OpenSslCcsInjectionScanResult()
@@ -145,9 +133,6 @@ SessionRenegotiationPlugin
 
 .. automodule:: sslyze.plugins.session_renegotiation_plugin
 
-SessionRenegotiationScanCommand
--------------------------------
-
 .. autoclass:: SessionRenegotiationScanCommand()
 .. autoclass:: SessionRenegotiationScanResult()
 
@@ -157,14 +142,28 @@ SessionResumptionPlugin
 
 .. automodule:: sslyze.plugins.session_resumption_plugin
 
-SessionResumptionSupportScanCommand
------------------------------------
-
 .. autoclass:: SessionResumptionSupportScanCommand()
 .. autoclass:: SessionResumptionSupportScanResult()
 
-SessionResumptionRateScanCommand
---------------------------------
-
 .. autoclass:: SessionResumptionRateScanCommand()
 .. autoclass:: SessionResumptionRateScanResult()
+
+RobotPlugin
+===========
+
+.. automodule:: sslyze.plugins.robot_plugin
+
+.. autoclass:: RobotScanCommand()
+.. autoclass:: RobotScanResultEnum()
+   :members:
+   :undoc-members:
+.. autoclass:: RobotScanResult()
+
+
+EarlyDataPlugin
+===============
+
+.. automodule:: sslyze.plugins.early_data_plugin
+
+.. autoclass:: EarlyDataScanCommand()
+.. autoclass:: EarlyDataScanResult()
